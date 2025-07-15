@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello CI/CD Learning Project</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            max-width: 600px;
+            width: 90%;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #fff, #f0f0f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 15px 25px;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .response {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .response pre {
+            color: #a8f0a8;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff6b6b;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #51cf66;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .footer {
+            margin-top: 30px;
+            opacity: 0.7;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Hello CI/CD!</h1>
+        <p class="subtitle">Learning CI/CD with a simple web application</p>
+        
+        <div class="actions">
+            <button onclick="testHello()">Say Hello</button>
+            <button onclick="testInfo()">Get Server Info</button>
+            <button onclick="testHealth()">Check Health</button>
+            <button onclick="testEcho()">Test Echo</button>
+        </div>
+
+        <div class="response" id="response">
+            <p>Click a button to test the API</p>
+        </div>
+
+        <div class="status">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-text">Checking connection...</span>
+        </div>
+
+        <div class="footer">
+            <p>Backend API: <span id="api-url">Loading...</span></p>
+            <p>Environment: <span id="environment">Unknown</span></p>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3001' 
+            : `${window.location.protocol}//${window.location.hostname}:3001`;
+
+        document.getElementById('api-url').textContent = API_BASE;
+
+        // Elements
+        const responseDiv = document.getElementById('response');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const environmentSpan = document.getElementById('environment');
+
+        // Utility function to make API calls
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                };
+
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                const result = await response.json();
+                
+                updateResponse(result, response.ok);
+                return result;
+            } catch (error) {
+                updateResponse({ error: error.message, details: 'Failed to connect to API' }, false);
+                updateConnectionStatus(false);
+            }
+        }
+
+        // Update response display
+        function updateResponse(data, success) {
+            responseDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            responseDiv.style.borderColor = success ? 'rgba(81, 207, 102, 0.5)' : 'rgba(255, 107, 107, 0.5)';
+        }
+
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            if (connected) {
+                statusDot.classList.add('connected');
+                statusText.textContent = 'Connected to API';
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = 'API connection failed';
+            }
+        }
+
+        // API Test Functions
+        async function testHello() {
+            const result = await apiCall('/api/hello');
+            if (result && result.environment) {
+                environmentSpan.textContent = result.environment;
+            }
+        }
+
+        async function testInfo() {
+            await apiCall('/api/info');
+        }
+
+        async function testHealth() {
+            const result = await apiCall('/health');
+            if (result && result.status === 'healthy') {
+                updateConnectionStatus(true);
+            }
+        }
+
+        async function testEcho() {
+            const testData = {
+                message: 'Hello from frontend!',
+                timestamp: new Date().toISOString(),
+                browser: navigator.userAgent.split(' ')[0]
+            };
+            await apiCall('/api/echo', 'POST', testData);
+        }
+
+        // Initialize - check health on load
+        window.addEventListener('load', () => {
+            testHealth();
+        });
+
+        // Auto-refresh health every 30 seconds
+        setInterval(() => {
+            testHealth();
+        }, 30000);
+    </script>
+</body>
+</html>
